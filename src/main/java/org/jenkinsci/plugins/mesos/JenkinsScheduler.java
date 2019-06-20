@@ -62,7 +62,7 @@ public class JenkinsScheduler implements Scheduler {
     private static final double JVM_MEM_OVERHEAD_FACTOR = 0.1;
 
     private static final String SLAVE_COMMAND_FORMAT =
-            "java -DHUDSON_HOME=jenkins -server -Xmx%dm %s -jar %MESOS_SANDBOX%/slave.jar %s %s -jnlpUrl %s";
+            "java -DHUDSON_HOME=jenkins -server -Xmx%dm %s -jar ${MESOS_SANDBOX-.}/slave.jar %s %s -jnlpUrl %s";
     private static final String JNLP_SECRET_FORMAT = "-secret %s";
     public static final String PORT_RESOURCE_NAME = "ports";
     public static final String MESOS_DEFAULT_ROLE = "*";
@@ -949,8 +949,7 @@ public class JenkinsScheduler implements Scheduler {
                 getJnlpSecret(slaveName),
                 getJnlpUrl(slaveName));
     }
-
-    private CommandInfo.Builder getBaseCommandBuilder(Request request) {
+   private CommandInfo.Builder getBaseCommandBuilder(Request request) {
 
         CommandInfo.Builder commandBuilder = CommandInfo.newBuilder();
         String jenkinsCommand2Run = generateJenkinsCommand2Run(
@@ -959,6 +958,10 @@ public class JenkinsScheduler implements Scheduler {
                 request.request.slaveInfo.getJnlpArgs(),
                 request.request.slave.name);
 
+        LOGGER.info("jenkins command to run before: "+jenkinsCommand2Run);
+        String jenkinsCommand2Run2 = jenkinsCommand2Run.replace("${MESOS_SANDBOX-.}","%MESOS_SANDBOX%");
+        LOGGER.info("jenkins command to run after: "+jenkinsCommand2Run2);
+       
         if (request.request.slaveInfo.getContainerInfo() != null &&
                 request.request.slaveInfo.getContainerInfo().getUseCustomDockerCommandShell()) {
             // Ref http://mesos.apache.org/documentation/latest/upgrades
@@ -973,12 +976,12 @@ public class JenkinsScheduler implements Scheduler {
             commandBuilder.setShell(false);
             commandBuilder.setValue(customShell);
             List args = new ArrayList();
-            args.add(jenkinsCommand2Run);
+            args.add(jenkinsCommand2Run2);
             commandBuilder.addAllArguments( args );
 
         } else {
             LOGGER.fine("About to use default shell ....");
-            commandBuilder.setValue(jenkinsCommand2Run);
+            commandBuilder.setValue(jenkinsCommand2Run2);
         }
 
         commandBuilder.addUris(
